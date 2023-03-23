@@ -1,4 +1,4 @@
-use std::{borrow::ToOwned, mem, ptr, slice::from_raw_parts, str::from_utf8};
+use std::{arch::asm, borrow::ToOwned, mem, ptr, slice::from_raw_parts, str::from_utf8};
 
 use windows_sys::Win32::{
     Foundation::EXCEPTION_SINGLE_STEP,
@@ -65,7 +65,7 @@ impl Extractor for Stack {
                     break;
                 }
             }
-            assert!(!(self.pid == 0), "Process {process_name} not found");
+            assert!((self.pid != 0), "Process {process_name} not found");
             println!("{process_count:?}");
         } else {
             panic!("WTSEnumerateProcessesA failed");
@@ -95,7 +95,19 @@ impl Extractor for Stack {
     }
 }
 
+unsafe fn tibx64() {
+        let mut tib: u64 = std::mem::zeroed();
+        asm!(
+            "mov rax, GS:[0x30]",
+            "mov {tib}, rax",
+            tib = inout(reg) tib,
+        );
+    // https://en.wikipedia.org/wiki/Win32_Thread_Information_Block
+    println!("TIB {tib:X}");
+}
+
 fn main() {
+    unsafe { tibx64(); }
     let mut stack = Stack::new();
     stack.attach(r#"notepad.exe"#);
 }
