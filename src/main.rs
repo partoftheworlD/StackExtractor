@@ -57,10 +57,9 @@ impl Extractor for Stack {
         };
         if wts_result != 0 {
             for idx in 1..process_count {
-                let pname = Stack::from_lpstr(
-                    unsafe { *process_info.offset((idx).try_into().unwrap()) }.pProcessName,
-                );
-                let pid = unsafe { *process_info.offset((idx).try_into().unwrap()) }.ProcessId;
+                let info = unsafe { *process_info.offset((idx).try_into().unwrap()) };
+                let pname = Stack::from_lpstr(info.pProcessName);
+                let pid = info.ProcessId;
                 if pname.eq_ignore_ascii_case(process_name) {
                     self.pid = pid;
                     break;
