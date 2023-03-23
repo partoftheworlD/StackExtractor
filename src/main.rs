@@ -19,7 +19,7 @@ trait Extractor {
     fn attach(&mut self, process_name: &str);
     fn set_hw_breakpoint(&self, addr: u64, exception_filter: fn(*const EXCEPTION_POINTERS));
     unsafe extern "system" fn exception_filter(exception_info: *const EXCEPTION_POINTERS) -> i32;
-    unsafe extern "system" fn set_veh_breakpoint(&self, addr: u64);
+    fn set_veh_breakpoint(&self, addr: u64);
 }
 
 trait Decoder {
@@ -90,7 +90,7 @@ impl Extractor for Stack {
         }
         ExceptionContinueSearch
     }
-    unsafe extern "system" fn set_veh_breakpoint(&self, addr: u64) {
+    fn set_veh_breakpoint(&self, addr: u64) {
         todo!();
     }
 }
