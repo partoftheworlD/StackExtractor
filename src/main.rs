@@ -10,10 +10,13 @@ use windows_sys::Win32::{
 };
 const CONTEXT_DEBUG_REGISTERS: u32 = 0x10000 | 0x10;
 
-struct Stack;
+struct Stack {
+    pid: u32,
+}
+
 trait Extractor {
     fn new() -> Self;
-    fn attach(&self, process_name: &str);
+    fn attach(&mut self, process_name: &str);
     fn set_hw_breakpoint(&self, addr: u64, exception_filter: fn(*const EXCEPTION_POINTERS));
     unsafe extern "system" fn exception_filter(exception_info: *const EXCEPTION_POINTERS) -> i32;
     unsafe extern "system" fn set_veh_breakpoint(&self, addr: u64);
@@ -36,26 +39,35 @@ impl<T: Extractor> Decoder for T {
 
 impl Extractor for Stack {
     fn new() -> Self {
-        Self
+        Stack { pid: 0 }
     }
 
-    fn attach(&self, process_name: &str) {
+    fn attach(&mut self, process_name: &str) {
         const WTS_CURRENT_SERVER_HANDLE: isize = 0;
         let mut process_info = ptr::null_mut();
         let mut process_count = 0u32;
-        let wts_result = unsafe { WTSEnumerateProcessesA(
-            WTS_CURRENT_SERVER_HANDLE,
-            0u32,
-            1,
-            &mut process_info,
-            &mut process_count,
-        ) };
+        let wts_result = unsafe {
+            WTSEnumerateProcessesA(
+                WTS_CURRENT_SERVER_HANDLE,
+                0u32,
+                1,
+                &mut process_info,
+                &mut process_count,
+            )
+        };
         if wts_result != 0 {
             for idx in 1..process_count {
-                let process_name = Stack::from_lpstr(
-                    (unsafe { *process_info.offset((idx).try_into().unwrap()) }).pProcessName,
+                let pname = Stack::from_lpstr(
+                    unsafe { *process_info.offset((idx).try_into().unwrap()) }.pProcessName,
                 );
-                println!("{process_name:?}");
+                let pid = unsafe { *process_info.offset((idx).try_into().unwrap()) }.ProcessId;
+                if pname.eq_ignore_ascii_case(process_name) {
+                    self.pid = pid;
+                    break;
+                }
+            }
+            if self.pid == 0 {
+                panic!("Process not found: {process_name}");
             }
             println!("{process_count:?}");
         } else {
@@ -87,6 +99,6 @@ impl Extractor for Stack {
 }
 
 fn main() {
-    let stack = Stack::new();
+    let mut stack = Stack::new();
     stack.attach("notepad.exe");
 }
