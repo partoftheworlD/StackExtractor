@@ -1,4 +1,4 @@
-use std::{mem, ptr};
+use std::{ffi::CString, mem, ptr};
 
 use windows_sys::Win32::{
     Foundation::EXCEPTION_SINGLE_STEP,
@@ -36,17 +36,14 @@ impl Extractor for Stack {
             &mut process_info,
             &mut process_count,
         );
-        if wts_result == 0 {
-            panic!("WTSEnumerateProcessesA failed");
-        } else {
+        if wts_result != 0 {
             for idx in 0..=process_count {
-                let process_name = (*(process_info).offset(idx as isize)).pProcessName;
-                if process_name.is_null() {
-                    println!("Found process: {process_name:?}");
-                }
-                // println!("{:?}", std::str::from_utf8_mut((process_info).offset(idx as isize)).pProcessName);
+                let x = (*process_info.offset((idx).try_into().unwrap())).pProcessName;
+                println!("{:?}", Some(x));
             }
             println!("{process_count:?}");
+        } else {
+            panic!("WTSEnumerateProcessesA failed");
         }
     }
 
