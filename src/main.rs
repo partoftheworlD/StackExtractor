@@ -1,9 +1,4 @@
-use std::{
-    borrow::{ToOwned},
-    mem, ptr,
-    slice::from_raw_parts,
-    str::from_utf8,
-};
+use std::{borrow::ToOwned, mem, ptr, slice::from_raw_parts, str::from_utf8};
 
 use windows_sys::Win32::{
     Foundation::EXCEPTION_SINGLE_STEP,
