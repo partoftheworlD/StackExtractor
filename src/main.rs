@@ -97,7 +97,7 @@ impl Extractor for Stack {
 
 // https://en.wikipedia.org/wiki/Win32_Thread_Information_Block
 unsafe fn tebx64() {
-    let mut teb: u64 = std::mem::zeroed();
+    let mut teb: u64 = mem::zeroed();
     asm!(
         "mov rax, GS:[0x30]",
         "mov {teb}, rax",
@@ -107,7 +107,7 @@ unsafe fn tebx64() {
 }
 
 unsafe fn pebx64() {
-    let mut peb: u64 = std::mem::zeroed();
+    let mut peb: u64 = mem::zeroed();
     asm!(
         "mov rax, GS:[0x60]",
         "mov {peb}, rax",
@@ -117,7 +117,7 @@ unsafe fn pebx64() {
 }
 
 unsafe fn ldr64() {
-    let mut ldr: u64 = std::mem::zeroed();
+    let mut ldr: u64 = mem::zeroed();
     asm!(
         "mov rax, GS:[0x60]",    // get peb
         "mov rax, [rax + 0x18]", // get ldr
