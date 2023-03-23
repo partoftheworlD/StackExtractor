@@ -1,4 +1,9 @@
-use std::{ffi::CString, mem, ptr};
+use std::{
+    borrow::{ToOwned},
+    mem, ptr,
+    slice::from_raw_parts,
+    str::from_utf8,
+};
 
 use windows_sys::Win32::{
     Foundation::EXCEPTION_SINGLE_STEP,
@@ -20,15 +25,17 @@ trait Extractor {
 }
 
 trait Decoder {
-    fn from_lpstr(&self, string: *mut u8) -> String;
+    fn from_lpstr(string: *mut u8) -> String;
 }
 
-impl<T: Extractor> Decoder for T{
+impl<T: Extractor> Decoder for T {
     // https://github.com/Traverse-Research/hassle-rs/blob/ddcdfc6032657b2b8d75d1bc55719d186ad7e55e/src/utils.rs#L34
-    fn from_lpstr(&self, string: *mut u8) -> String {
-        let len = (0..).take_while(|&i| unsafe { *string.offset(i) } != 0).count();
-        let slice: &[u8] = unsafe { std::slice::from_raw_parts(string.cast(), len) };
-        std::str::from_utf8(slice).map(|s| s.to_owned()).unwrap()
+    fn from_lpstr(string: *mut u8) -> String {
+        let len = (0..)
+            .take_while(|&i| unsafe { *string.offset(i) } != 0)
+            .count();
+        let slice: &[u8] = unsafe { from_raw_parts(string.cast(), len) };
+        from_utf8(slice).map(ToOwned::to_owned).unwrap()
     }
 }
 
@@ -41,7 +48,6 @@ impl Extractor for Stack {
         const WTS_CURRENT_SERVER_HANDLE: isize = 0;
         let mut process_info = ptr::null_mut();
         let mut process_count = 0u32;
-        println!("Start WTSEnumerateProcessesA");
         let wts_result = WTSEnumerateProcessesA(
             WTS_CURRENT_SERVER_HANDLE,
             0u32,
@@ -50,9 +56,11 @@ impl Extractor for Stack {
             &mut process_count,
         );
         if wts_result != 0 {
-            for idx in 0..process_count {
-                let process_name = self.from_lpstr((*process_info.offset((idx).try_into().unwrap())).pProcessName);
-                println!("{:?}", process_name);
+            for idx in 1..process_count {
+                let process_name = Stack::from_lpstr(
+                    (*process_info.offset((idx).try_into().unwrap())).pProcessName,
+                );
+                println!("{process_name:?}");
             }
             println!("{process_count:?}");
         } else {
