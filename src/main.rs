@@ -66,9 +66,7 @@ impl Extractor for Stack {
                     break;
                 }
             }
-            if self.pid == 0 {
-                panic!("Process {process_name} not found");
-            }
+            assert!(!(self.pid == 0), "Process {process_name} not found");
             println!("{process_count:?}");
         } else {
             panic!("WTSEnumerateProcessesA failed");
@@ -100,5 +98,5 @@ impl Extractor for Stack {
 
 fn main() {
     let mut stack = Stack::new();
-    stack.attach("notepad.exe");
+    stack.attach(r#"notepad.exe"#);
 }
