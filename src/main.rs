@@ -74,7 +74,7 @@ impl Extractor for Stack {
 
     fn set_hw_breakpoint(&self, addr: u64, exception_filter: fn(*const EXCEPTION_POINTERS)) {
         unsafe {
-            SetUnhandledExceptionFilter(Some(std::mem::transmute(exception_filter)));
+            SetUnhandledExceptionFilter(Some(mem::transmute(exception_filter)));
         }
         let mut thread_context: CONTEXT = unsafe { mem::zeroed() };
         thread_context.ContextFlags = CONTEXT_DEBUG_REGISTERS;
