@@ -95,19 +95,44 @@ impl Extractor for Stack {
     }
 }
 
-unsafe fn tibx64() {
-        let mut tib: u64 = std::mem::zeroed();
-        asm!(
-            "mov rax, GS:[0x30]",
-            "mov {tib}, rax",
-            tib = inout(reg) tib,
-        );
-    // https://en.wikipedia.org/wiki/Win32_Thread_Information_Block
-    println!("TIB {tib:X}");
+// https://en.wikipedia.org/wiki/Win32_Thread_Information_Block
+unsafe fn tebx64() {
+    let mut teb: u64 = std::mem::zeroed();
+    asm!(
+        "mov rax, GS:[0x30]",
+        "mov {teb}, rax",
+        teb = out(reg) teb,
+    );
+    println!("teb {teb:#X}");
+}
+
+unsafe fn pebx64() {
+    let mut peb: u64 = std::mem::zeroed();
+    asm!(
+        "mov rax, GS:[0x60]",
+        "mov {peb}, rax",
+        peb = out(reg) peb,
+    );
+    println!("Peb {peb:#X}");
+}
+
+unsafe fn ldr64() {
+    let mut ldr: u64 = std::mem::zeroed();
+    asm!(
+        "mov rax, GS:[0x60]",    // get peb
+        "mov rax, [rax + 0x18]", // get ldr
+        "mov {ldr}, rax",
+        ldr = out(reg) ldr,
+    );
+    println!("Ldr {ldr:#X}");
 }
 
 fn main() {
-    unsafe { tibx64(); }
+    unsafe {
+        tebx64();
+        pebx64();
+        ldr64();
+    }
     let mut stack = Stack::new();
     stack.attach(r#"notepad.exe"#);
 }
