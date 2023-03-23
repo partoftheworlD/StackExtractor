@@ -67,7 +67,7 @@ impl Extractor for Stack {
                 }
             }
             if self.pid == 0 {
-                panic!("Process not found: {process_name}");
+                panic!("Process {process_name} not found");
             }
             println!("{process_count:?}");
         } else {
