@@ -40,7 +40,7 @@ impl Extractor for Stack {
                 &mut process_count,
             )
         };
-        if wts_result != 0 {
+        if wts_result != 0 && !process_info.is_null() {
             for idx in 1..process_count {
                 let info = unsafe { *process_info.offset((idx).try_into().unwrap()) };
                 let pname = Stack::from_lpstr(info.pProcessName);
