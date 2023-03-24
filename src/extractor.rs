@@ -17,6 +17,7 @@ const CONTEXT_DEBUG_REGISTERS: u32 = 0x10000 | 0x10;
 
 pub struct Stack {
     pub pid: u32,
+    pub tid: u32,
 }
 
 pub trait Extractor {
@@ -30,7 +31,7 @@ pub trait Extractor {
 
 impl Extractor for Stack {
     fn new() -> self::Stack {
-        self::Stack { pid: 0 }
+        self::Stack { pid: 0, tid: 0 }
     }
     fn attach(&mut self, process_name: &str) {
         const WTS_CURRENT_SERVER_HANDLE: isize = 0;
@@ -49,9 +50,8 @@ impl Extractor for Stack {
             for idx in 1..process_count {
                 let info = unsafe { *process_info.offset((idx).try_into().unwrap()) };
                 let pname = Stack::from_lpstr(info.pProcessName);
-                let pid = info.ProcessId;
                 if pname.eq_ignore_ascii_case(process_name) {
-                    self.pid = pid;
+                    self.pid = info.ProcessId;
                     break;
                 }
             }
@@ -85,9 +85,8 @@ impl Extractor for Stack {
     }
 
     unsafe fn stacktrace(&self, hprocess: isize, hthread: isize) {
-        let mut stackframe: *mut STACKFRAME_EX = mem::zeroed();
-        let mut context: *mut CONTEXT = mem::zeroed();
-        let mut translate_address: PTRANSLATE_ADDRESS_ROUTINE64 = mem::zeroed();
+        let stackframe: *mut STACKFRAME_EX = mem::zeroed();
+        let context: *mut CONTEXT = mem::zeroed();
 
         let x = StackWalkEx(
             IMAGE_FILE_MACHINE_AMD64 as u32,
@@ -98,9 +97,9 @@ impl Extractor for Stack {
             None,
             None,
             None,
-            translate_address,
+            None,
             SYM_STKWALK_DEFAULT,
         );
-        println!("{:?}", x);
+        println!("stack trace {:?}", x);
     }
 }
