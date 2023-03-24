@@ -109,7 +109,6 @@ impl Extractor for Stack {
         let stackframe = stackframe_bind.assume_init_mut();
         let context = context_bind.as_mut_ptr();
 
-        // TODO: fxsave [rcx+0x100] c0000005
         RtlCaptureContext(context);
         context_bind.assume_init();
 
