@@ -1,11 +1,15 @@
-use std::{mem, ptr};
 use crate::decoder::Decoder;
+use std::{ffi::c_void, mem, ptr};
 use windows_sys::Win32::{
     Foundation::EXCEPTION_SINGLE_STEP,
     System::{
-        Diagnostics::Debug::{SetUnhandledExceptionFilter, CONTEXT, EXCEPTION_POINTERS},
+        Diagnostics::Debug::{
+            SetUnhandledExceptionFilter, StackWalkEx, CONTEXT, EXCEPTION_POINTERS,
+            PTRANSLATE_ADDRESS_ROUTINE64, STACKFRAME_EX, SYM_STKWALK_DEFAULT,
+        },
         Kernel::{ExceptionContinueExecution, ExceptionContinueSearch},
         RemoteDesktop::WTSEnumerateProcessesA,
+        SystemInformation::IMAGE_FILE_MACHINE_AMD64,
     },
 };
 
@@ -21,6 +25,7 @@ pub trait Extractor {
     fn set_hw_breakpoint(&self, addr: u64, exception_filter: fn(*const EXCEPTION_POINTERS));
     unsafe extern "system" fn exception_filter(exception_info: *const EXCEPTION_POINTERS) -> i32;
     fn set_veh_breakpoint(&self, addr: u64);
+    unsafe fn stacktrace(&self, hprocess: isize, hthread: isize);
 }
 
 impl Extractor for Stack {
@@ -77,5 +82,25 @@ impl Extractor for Stack {
     }
     fn set_veh_breakpoint(&self, addr: u64) {
         todo!();
+    }
+
+    unsafe fn stacktrace(&self, hprocess: isize, hthread: isize) {
+        let mut stackframe: *mut STACKFRAME_EX = mem::zeroed();
+        let mut context: *mut CONTEXT = mem::zeroed();
+        let mut translate_address: PTRANSLATE_ADDRESS_ROUTINE64 = mem::zeroed();
+
+        let x = StackWalkEx(
+            IMAGE_FILE_MACHINE_AMD64 as u32,
+            hprocess,
+            hthread,
+            stackframe,
+            context as *mut c_void,
+            None,
+            None,
+            None,
+            translate_address,
+            SYM_STKWALK_DEFAULT,
+        );
+        println!("{:?}", x);
     }
 }

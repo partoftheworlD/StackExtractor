@@ -1,5 +1,5 @@
-use std::{borrow::ToOwned, slice::from_raw_parts, str::from_utf8};
 use crate::extractor::Extractor;
+use std::{borrow::ToOwned, slice::from_raw_parts, str::from_utf8};
 
 pub trait Decoder {
     fn from_lpstr(string: *mut u8) -> String;

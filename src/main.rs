@@ -1,7 +1,7 @@
 use std::{arch::asm, mem};
 
-pub mod extractor;
 pub mod decoder;
+pub mod extractor;
 use crate::extractor::{Extractor, Stack};
 // https://en.wikipedia.org/wiki/Win32_Thread_Information_Block
 unsafe fn tebx64() {
