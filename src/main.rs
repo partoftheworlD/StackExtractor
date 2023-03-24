@@ -53,7 +53,7 @@ fn main() {
         ldr64();
 
         let mut stack = Stack::new();
-        stack.attach(r#"notepad.exe"#);
+        // stack.attach(r#"notepad.exe"#);
         let th32: *mut THREADENTRY32 = mem::zeroed();
         let hprocess = OpenProcess(PROCESS_ALL_ACCESS, 0, stack.pid);
         let mut hthread = 0isize;

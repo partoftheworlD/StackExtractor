@@ -1,5 +1,10 @@
 use crate::decoder::Decoder;
-use std::{ffi::c_void, mem, ptr};
+use std::{
+    ffi::c_void,
+    mem::{self, MaybeUninit},
+    ops::DerefMut,
+    ptr::{self, addr_of, addr_of_mut},
+};
 use windows_sys::Win32::{
     Foundation::EXCEPTION_SINGLE_STEP,
     System::{
@@ -98,23 +103,36 @@ impl Extractor for Stack {
                 });
         }
 
-        let stackframe: *mut STACKFRAME64 = ptr::null_mut();
-        let context: *mut CONTEXT = ptr::null_mut();
+        let mut stackframe_bind = MaybeUninit::<STACKFRAME64>::uninit();
+        let mut context_bind = MaybeUninit::<CONTEXT>::uninit();
 
-        RtlCaptureContext(context);
-        (*stackframe).AddrPC.Offset = (*context).Rip;
-        (*stackframe).AddrPC.Mode = AddrModeFlat;
-        (*stackframe).AddrStack.Offset = (*context).Rsp;
-        (*stackframe).AddrStack.Mode = AddrModeFlat;
-        (*stackframe).AddrFrame.Offset = (*context).Rsp;
-        (*stackframe).AddrFrame.Mode = AddrModeFlat;
+        let stackframe = stackframe_bind.assume_init_mut();
+        let mut context = context_bind.assume_init_mut();
+        let pcontext = addr_of_mut!(*context).cast::<std::ffi::c_void>();
+
+        // fxsave [rcx+0x100] c0000005
+        // RtlCaptureContext(context);
+
+        let rip = (*context).Rip;
+        let rsp = (*context).Rsp;
+        let rbp = (*context).Rbp;
+        println!("Rip: {:X}", rip);
+        println!("Rsp: {:X}", rsp);
+        println!("Rbp: {:X}", rbp);
+        stackframe.AddrPC.Offset = rip;
+        stackframe.AddrStack.Offset = rsp;
+        stackframe.AddrFrame.Offset = rbp;
+        stackframe.AddrPC.Mode = AddrModeFlat;
+        stackframe.AddrStack.Mode = AddrModeFlat;
+        stackframe.AddrFrame.Mode = AddrModeFlat;
+
         // TODO Отладить StackWalk64
         StackWalk64(
-            IMAGE_FILE_MACHINE_AMD64 as u32,
+            u32::from(IMAGE_FILE_MACHINE_AMD64),
             GetCurrentProcess(),
             GetCurrentThread(),
             stackframe,
-            context as *mut c_void,
+            pcontext,
             None,
             None,
             None,
@@ -122,7 +140,7 @@ impl Extractor for Stack {
         );
 
         println!("stack trace {:?}", num_frames);
-        println!("context {:?}", context);
-        println!("stack frame {:?}", stackframe);
+        println!("context {:X}", context.Rip);
+        println!("Addr return frame {:?}", stackframe.AddrReturn.Offset);
     }
 }
