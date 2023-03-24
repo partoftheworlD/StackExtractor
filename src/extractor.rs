@@ -111,6 +111,7 @@ impl Extractor for Stack {
 
         // TODO: fxsave [rcx+0x100] c0000005
         RtlCaptureContext(context);
+        context_bind.assume_init();
 
         let rip = (*context).Rip;
         let rsp = (*context).Rsp;
@@ -138,8 +139,8 @@ impl Extractor for Stack {
             None,
         );
 
-        println!("stack trace {:?}", num_frames);
+        println!("Number of frames {:?}", num_frames);
         println!("context {:X}", (*context).Rip);
-        println!("Addr return frame {:?}", stackframe.AddrReturn.Offset);
+        println!("Addr return frame {:X}", stackframe.AddrReturn.Offset);
     }
 }
