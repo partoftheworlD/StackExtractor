@@ -4,13 +4,10 @@ use windows_sys::Win32::{
     Foundation::EXCEPTION_SINGLE_STEP,
     System::{
         Diagnostics::Debug::{
-            AddrModeFlat, RtlCaptureContext, RtlCaptureStackBackTrace, SetUnhandledExceptionFilter,
-            StackWalk64, CONTEXT, EXCEPTION_POINTERS, STACKFRAME64,
+            RtlCaptureStackBackTrace, SetUnhandledExceptionFilter, CONTEXT, EXCEPTION_POINTERS,
         },
         Kernel::{ExceptionContinueExecution, ExceptionContinueSearch},
         RemoteDesktop::WTSEnumerateProcessesA,
-        SystemInformation::IMAGE_FILE_MACHINE_AMD64,
-        Threading::{GetCurrentProcess, GetCurrentThread},
     },
 };
 
@@ -90,7 +87,7 @@ impl Extractor for Stack {
         let num_frames = RtlCaptureStackBackTrace(0, 63, pbacktrace, std::ptr::null_mut::<u32>());
         if num_frames > 0 {
             println!("stack trace");
-            backtrace.into_iter().take_while(|x| *x!= 0).for_each(|x| {
+            backtrace.into_iter().take_while(|x| *x != 0).for_each(|x| {
                 println!(" {:#X}", x);
             });
         }
@@ -106,18 +103,24 @@ impl Extractor for Stack {
         // (*stackframe).AddrFrame.Offset = (*context).Rsp;
         // (*stackframe).AddrFrame.Mode = AddrModeFlat;
 
-        // let result = StackWalk64(
-        //     IMAGE_FILE_MACHINE_AMD64 as u32,
-        //     GetCurrentProcess(),
-        //     GetCurrentThread(),
-        //     stackframe,
-        //     context as *mut c_void,
-        //     None,
-        //     None,
-        //     None,
-        //     None
-        // );
+        // for _ in 0..=num_frames {
+        //     if StackWalk64(
+        //         IMAGE_FILE_MACHINE_AMD64 as u32,
+        //         GetCurrentProcess(),
+        //         GetCurrentThread(),
+        //         stackframe,
+        //         context as *mut c_void,
+        //         None,
+        //         None,
+        //         None,
+        //         None,
+        //     ) != 0
+        //     {
 
-        println!("stack trace {:?}", num_frames);
+        //     }
+        // }
+        // println!("stack trace {:?}", num_frames);
+        // println!("context {:?}", context);
+        // println!("stack frame {:?}", num_frames);
     }
 }
