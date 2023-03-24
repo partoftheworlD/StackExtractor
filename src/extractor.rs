@@ -71,10 +71,15 @@ impl Extractor for Stack {
         unsafe {
             SetUnhandledExceptionFilter(Some(mem::transmute(exception_filter)));
         }
-        let mut thread_context: CONTEXT = unsafe { mem::zeroed() };
-        thread_context.ContextFlags = CONTEXT_DEBUG_REGISTERS;
-        thread_context.Dr0 = addr;
-        thread_context.Dr7 = 1 << 0;
+        let mut thread_context_bind = MaybeUninit::<CONTEXT>::uninit();
+        let mut thread_context = thread_context_bind.as_mut_ptr();
+        unsafe {
+            (*thread_context).ContextFlags = CONTEXT_DEBUG_REGISTERS;
+            (*thread_context).Dr0 = addr;
+            (*thread_context).Dr7 = 1 << 0;
+
+            thread_context_bind.assume_init();
+        }
     }
 
     unsafe extern "system" fn exception_filter(exception_info: *const EXCEPTION_POINTERS) -> i32 {
