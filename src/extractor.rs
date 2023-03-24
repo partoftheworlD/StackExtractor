@@ -4,12 +4,13 @@ use windows_sys::Win32::{
     Foundation::EXCEPTION_SINGLE_STEP,
     System::{
         Diagnostics::Debug::{
-            SetUnhandledExceptionFilter, StackWalkEx, CONTEXT, EXCEPTION_POINTERS,
-            PTRANSLATE_ADDRESS_ROUTINE64, STACKFRAME_EX, SYM_STKWALK_DEFAULT,
+            AddrModeFlat, RtlCaptureContext, RtlCaptureStackBackTrace, SetUnhandledExceptionFilter,
+            StackWalk64, CONTEXT, EXCEPTION_POINTERS, STACKFRAME64,
         },
         Kernel::{ExceptionContinueExecution, ExceptionContinueSearch},
         RemoteDesktop::WTSEnumerateProcessesA,
         SystemInformation::IMAGE_FILE_MACHINE_AMD64,
+        Threading::{GetCurrentProcess, GetCurrentThread},
     },
 };
 
@@ -19,7 +20,6 @@ pub struct Stack {
     pub pid: u32,
     pub tid: u32,
 }
-
 pub trait Extractor {
     fn new() -> Self;
     fn attach(&mut self, process_name: &str);
@@ -85,21 +85,39 @@ impl Extractor for Stack {
     }
 
     unsafe fn stacktrace(&self, hprocess: isize, hthread: isize) {
-        let stackframe: *mut STACKFRAME_EX = mem::zeroed();
-        let context: *mut CONTEXT = mem::zeroed();
+        let mut backtrace = vec![0u64; u16::MAX as usize];
+        let pbacktrace = backtrace.as_mut_ptr().cast::<*mut std::ffi::c_void>();
+        let num_frames = RtlCaptureStackBackTrace(0, 63, pbacktrace, std::ptr::null_mut::<u32>());
+        if num_frames > 0 {
+            println!("stack trace");
+            backtrace.into_iter().take_while(|x| *x!= 0).for_each(|x| {
+                println!(" {:#X}", x);
+            });
+        }
 
-        let x = StackWalkEx(
-            IMAGE_FILE_MACHINE_AMD64 as u32,
-            hprocess,
-            hthread,
-            stackframe,
-            context as *mut c_void,
-            None,
-            None,
-            None,
-            None,
-            SYM_STKWALK_DEFAULT,
-        );
-        println!("stack trace {:?}", x);
+        // let stackframe: *mut STACKFRAME64 = ptr::null_mut();
+        // let context: *mut CONTEXT = ptr::null_mut();
+
+        // RtlCaptureContext(context);
+        // (*stackframe).AddrPC.Offset = (*context).Rip;
+        // (*stackframe).AddrPC.Mode = AddrModeFlat;
+        // (*stackframe).AddrStack.Offset = (*context).Rsp;
+        // (*stackframe).AddrStack.Mode = AddrModeFlat;
+        // (*stackframe).AddrFrame.Offset = (*context).Rsp;
+        // (*stackframe).AddrFrame.Mode = AddrModeFlat;
+
+        // let result = StackWalk64(
+        //     IMAGE_FILE_MACHINE_AMD64 as u32,
+        //     GetCurrentProcess(),
+        //     GetCurrentThread(),
+        //     stackframe,
+        //     context as *mut c_void,
+        //     None,
+        //     None,
+        //     None,
+        //     None
+        // );
+
+        println!("stack trace {:?}", num_frames);
     }
 }
