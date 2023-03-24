@@ -107,11 +107,10 @@ impl Extractor for Stack {
         let mut context_bind = MaybeUninit::<CONTEXT>::uninit();
 
         let stackframe = stackframe_bind.assume_init_mut();
-        let mut context = context_bind.assume_init_mut();
-        let pcontext = addr_of_mut!(*context).cast::<std::ffi::c_void>();
+        let context = context_bind.as_mut_ptr();
 
-        // fxsave [rcx+0x100] c0000005
-        // RtlCaptureContext(context);
+        // TODO: fxsave [rcx+0x100] c0000005
+        RtlCaptureContext(context);
 
         let rip = (*context).Rip;
         let rsp = (*context).Rsp;
@@ -132,7 +131,7 @@ impl Extractor for Stack {
             GetCurrentProcess(),
             GetCurrentThread(),
             stackframe,
-            pcontext,
+            context.cast::<c_void>(),
             None,
             None,
             None,
@@ -140,7 +139,7 @@ impl Extractor for Stack {
         );
 
         println!("stack trace {:?}", num_frames);
-        println!("context {:X}", context.Rip);
+        println!("context {:X}", (*context).Rip);
         println!("Addr return frame {:?}", stackframe.AddrReturn.Offset);
     }
 }
