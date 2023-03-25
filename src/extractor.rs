@@ -38,6 +38,7 @@ impl Extractor for Stack {
     fn new() -> self::Stack {
         self::Stack { pid: 0, tid: 0 }
     }
+    
     fn attach(&mut self, process_name: &str) {
         const WTS_CURRENT_SERVER_HANDLE: isize = 0;
         let mut process_info = ptr::null_mut();
@@ -109,9 +110,9 @@ impl Extractor for Stack {
         }
 
         let mut stackframe_bind = MaybeUninit::<STACKFRAME64>::uninit();
-        let mut context_bind = MaybeUninit::<CONTEXT>::uninit();
-
         let stackframe = stackframe_bind.assume_init_mut();
+
+        let mut context_bind = MaybeUninit::<CONTEXT>::uninit();
         let context = context_bind.as_mut_ptr();
 
         RtlCaptureContext(context);
@@ -120,9 +121,9 @@ impl Extractor for Stack {
         let rip = (*context).Rip;
         let rsp = (*context).Rsp;
         let rbp = (*context).Rbp;
-        println!("Rip: {:X}", rip);
-        println!("Rsp: {:X}", rsp);
-        println!("Rbp: {:X}", rbp);
+        println!("Rip: {:#X}", rip);
+        println!("Rsp: {:#X}", rsp);
+        println!("Rbp: {:#X}", rbp);
         stackframe.AddrPC.Offset = rip;
         stackframe.AddrStack.Offset = rsp;
         stackframe.AddrFrame.Offset = rbp;
@@ -133,8 +134,8 @@ impl Extractor for Stack {
         // TODO Отладить StackWalk64
         StackWalk64(
             u32::from(IMAGE_FILE_MACHINE_AMD64),
-            GetCurrentProcess(),
-            GetCurrentThread(),
+            hprocess,
+            hthread,
             stackframe,
             context.cast::<c_void>(),
             None,
@@ -144,7 +145,7 @@ impl Extractor for Stack {
         );
 
         println!("Number of frames {:?}", num_frames);
-        println!("context {:X}", (*context).Rip);
-        println!("Addr return frame {:X}", stackframe.AddrReturn.Offset);
+        println!("context Rip: {:#X}", (*context).Rip);
+        println!("Addr return frame: {:#X}", stackframe.AddrReturn.Offset);
     }
 }
