@@ -132,6 +132,7 @@ impl Extractor for Stack {
         stackframe.AddrFrame.Mode = AddrModeFlat;
 
         // TODO Отладить StackWalk64
+        
         StackWalk64(
             u32::from(IMAGE_FILE_MACHINE_AMD64),
             hprocess,
