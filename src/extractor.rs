@@ -38,7 +38,7 @@ impl Extractor for Stack {
     fn new() -> self::Stack {
         self::Stack { pid: 0, tid: 0 }
     }
-    
+
     fn attach(&mut self, process_name: &str) {
         const WTS_CURRENT_SERVER_HANDLE: isize = 0;
         let mut process_info = ptr::null_mut();
@@ -121,9 +121,11 @@ impl Extractor for Stack {
         let rip = (*context).Rip;
         let rsp = (*context).Rsp;
         let rbp = (*context).Rbp;
+
         println!("Rip: {:#X}", rip);
         println!("Rsp: {:#X}", rsp);
         println!("Rbp: {:#X}", rbp);
+
         stackframe.AddrPC.Offset = rip;
         stackframe.AddrStack.Offset = rsp;
         stackframe.AddrFrame.Offset = rbp;
@@ -132,7 +134,7 @@ impl Extractor for Stack {
         stackframe.AddrFrame.Mode = AddrModeFlat;
 
         // TODO Отладить StackWalk64
-        
+
         StackWalk64(
             u32::from(IMAGE_FILE_MACHINE_AMD64),
             hprocess,

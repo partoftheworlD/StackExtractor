@@ -1,4 +1,7 @@
-use std::{arch::asm, mem};
+use std::{
+    arch::asm,
+    mem::{self, MaybeUninit},
+};
 
 pub mod decoder;
 pub mod extractor;
@@ -53,21 +56,23 @@ fn main() {
         ldr64();
 
         let mut stack = Stack::new();
-        // stack.attach(r#"notepad.exe"#);
-        let th32: *mut THREADENTRY32 = mem::zeroed();
+        stack.attach(r#"notepad.exe"#);
+        let mut th32_bind = MaybeUninit::<THREADENTRY32>::uninit();
         let hprocess = OpenProcess(PROCESS_ALL_ACCESS, 0, stack.pid);
         let mut hthread = 0isize;
         println!("HProcess {:?}", hprocess);
         // TODO: Get hthread
-        // let hsnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD | TH32CS_SNAPPROCESS, 0);
-        // while Thread32First(hsnap, th32) == 1 {
-        //     Thread32Next(hsnap, th32);
-        //     println!("th32 {:#X}", (*th32).th32ThreadID);
-        //     if (*th32).th32OwnerProcessID == stack.pid {
-        //         hthread = OpenThread(THREAD_QUERY_INFORMATION, 1, (*th32).th32ThreadID);
-        //         break;
-        //     }
-        // }
+        let th32 = th32_bind.as_mut_ptr();
+        let hsnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD | TH32CS_SNAPPROCESS, 0);
+        while Thread32First(hsnap, th32) == 1 {
+            Thread32Next(hsnap, th32);
+            println!("th32 {:#X}", (*th32).th32ThreadID);
+            if (*th32).th32OwnerProcessID == stack.pid {
+                hthread = OpenThread(THREAD_QUERY_INFORMATION, 1, (*th32).th32ThreadID);
+                break;
+            }
+        }
+        th32_bind.assume_init();
         if hthread != 0 {
             println!("HThread {:?}", hthread);
         } else {
