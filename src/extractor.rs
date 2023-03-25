@@ -1,9 +1,8 @@
 use crate::decoder::Decoder;
+use std::ptr::{self, addr_of_mut};
 use std::{
     ffi::c_void,
     mem::{self, MaybeUninit},
-    ops::DerefMut,
-    ptr::{self, addr_of, addr_of_mut},
 };
 use windows_sys::Win32::{
     Foundation::EXCEPTION_SINGLE_STEP,
@@ -15,7 +14,6 @@ use windows_sys::Win32::{
         Kernel::{ExceptionContinueExecution, ExceptionContinueSearch},
         RemoteDesktop::WTSEnumerateProcessesA,
         SystemInformation::IMAGE_FILE_MACHINE_AMD64,
-        Threading::{GetCurrentProcess, GetCurrentThread},
     },
 };
 

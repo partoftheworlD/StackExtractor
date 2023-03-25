@@ -1,10 +1,9 @@
-use std::{
-    arch::asm,
-    mem::{self, MaybeUninit},
-};
-
 pub mod decoder;
 pub mod extractor;
+
+use crate::extractor::{Extractor, Stack};
+use std::ptr::addr_of_mut;
+use std::{arch::asm, mem};
 use windows_sys::Win32::{
     Foundation::CloseHandle,
     System::{
@@ -16,7 +15,6 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::extractor::{Extractor, Stack};
 // https://en.wikipedia.org/wiki/Win32_Thread_Information_Block
 unsafe fn tebx64() {
     let mut teb: u64 = mem::zeroed();
@@ -51,28 +49,25 @@ unsafe fn ldr64() {
 
 fn main() {
     unsafe {
-        tebx64();
-        pebx64();
-        ldr64();
-
         let stack = Stack::new();
         // stack.attach(r#"notepad.exe"#);
-        let mut th32 = MaybeUninit::<THREADENTRY32>::uninit();
-        let p_th32 = th32.as_mut_ptr();
-        let hprocess = OpenProcess(PROCESS_ALL_ACCESS, 0, stack.pid);
+        let mut th32 = mem::zeroed::<THREADENTRY32>();
+        let ptr_th32 = addr_of_mut!(th32);
         let mut hthread = 0isize;
+
+        let hprocess = OpenProcess(PROCESS_ALL_ACCESS, 0, stack.pid);
         println!("HProcess {:?}", hprocess);
         // TODO: Get hthread
         let hsnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD | TH32CS_SNAPPROCESS, 0);
-        while Thread32First(hsnap, p_th32) == 1 {
-            Thread32Next(hsnap, p_th32);
-            println!("th32 {:#X}", (*p_th32).th32ThreadID);
-            if (*p_th32).th32OwnerProcessID == stack.pid {
-                hthread = OpenThread(THREAD_QUERY_INFORMATION, 1, (*p_th32).th32ThreadID);
+        while Thread32First(hsnap, ptr_th32) == 1 {
+            Thread32Next(hsnap, ptr_th32);
+            println!("th32 {:#X}", (*ptr_th32).th32ThreadID);
+            if (*ptr_th32).th32OwnerProcessID == stack.pid {
+                hthread = OpenThread(THREAD_QUERY_INFORMATION, 1, (*ptr_th32).th32ThreadID);
                 break;
             }
         }
-        th32.assume_init();
+
         if hthread != 0 {
             println!("HThread {:?}", hthread);
         } else {
