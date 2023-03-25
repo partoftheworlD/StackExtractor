@@ -49,14 +49,14 @@ unsafe fn ldr64() {
 
 fn main() {
     unsafe {
-        let stack = Stack::new();
-        // stack.attach(r#"notepad.exe"#);
-        let mut th32 = mem::zeroed::<THREADENTRY32>();
-        let ptr_th32 = addr_of_mut!(th32);
+        let mut stack = Stack::new();
+        stack.attach(r#"notepad.exe"#);
+        let mut th32 = Box::new(mem::zeroed::<THREADENTRY32>());
+        let ptr_th32 = addr_of_mut!(*th32);
         let mut hthread = 0isize;
 
         let hprocess = OpenProcess(PROCESS_ALL_ACCESS, 0, stack.pid);
-        println!("HProcess {:?}", hprocess);
+        println!("HProcess {hprocess:?}");
         // TODO: Get hthread
         let hsnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD | TH32CS_SNAPPROCESS, 0);
         while Thread32First(hsnap, ptr_th32) == 1 {
@@ -69,7 +69,7 @@ fn main() {
         }
 
         if hthread != 0 {
-            println!("HThread {:?}", hthread);
+            println!("HThread {hthread:?}");
         } else {
             println!("Can't get HThread");
         }

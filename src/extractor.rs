@@ -1,8 +1,8 @@
 use crate::decoder::Decoder;
-use std::ptr::{self, addr_of_mut};
 use std::{
     ffi::c_void,
-    mem::{self, MaybeUninit},
+    mem::{self},
+    ptr::{self, addr_of_mut},
 };
 use windows_sys::Win32::{
     Foundation::EXCEPTION_SINGLE_STEP,
@@ -14,6 +14,7 @@ use windows_sys::Win32::{
         Kernel::{ExceptionContinueExecution, ExceptionContinueSearch},
         RemoteDesktop::WTSEnumerateProcessesA,
         SystemInformation::IMAGE_FILE_MACHINE_AMD64,
+        Threading::{GetCurrentProcess, GetCurrentThread},
     },
 };
 
@@ -53,7 +54,7 @@ impl Extractor for Stack {
         if wts_result != 0 && !process_info.is_null() {
             for idx in 1..=process_count {
                 let info = unsafe { *process_info.offset((idx).try_into().unwrap()) };
-                let pname = Stack::from_lpstr(info.pProcessName);
+                let pname = unsafe { Stack::from_lpstr(info.pProcessName) };
                 if pname.eq_ignore_ascii_case(process_name) {
                     self.pid = info.ProcessId;
                     break;
@@ -70,14 +71,12 @@ impl Extractor for Stack {
         unsafe {
             SetUnhandledExceptionFilter(Some(mem::transmute(exception_filter)));
         }
-        let mut thread_context_bind = MaybeUninit::<CONTEXT>::uninit();
-        let mut thread_context = thread_context_bind.as_mut_ptr();
+        let mut thread_context =  unsafe { Box::new(mem::zeroed::<CONTEXT>()) };
+        let ptr_thread_context = addr_of_mut!(*thread_context);
         unsafe {
-            (*thread_context).ContextFlags = CONTEXT_DEBUG_REGISTERS;
-            (*thread_context).Dr0 = addr;
-            (*thread_context).Dr7 = 1 << 0;
-
-            thread_context_bind.assume_init();
+            (*ptr_thread_context).ContextFlags = CONTEXT_DEBUG_REGISTERS;
+            (*ptr_thread_context).Dr0 = addr;
+            (*ptr_thread_context).Dr7 = 1 << 0;
         }
     }
 
@@ -105,14 +104,14 @@ impl Extractor for Stack {
                 .into_iter()
                 .take_while(|stack_ptr| *stack_ptr != 0)
                 .for_each(|stack_ptr| {
-                    println!(" {:#X}", stack_ptr);
+                    println!(" {stack_ptr:#X}");
                 });
         }
 
-        let mut stackframe = mem::zeroed::<STACKFRAME64>();
-        let mut context = mem::zeroed::<CONTEXT>();
-        let ptr_stackframe = addr_of_mut!(stackframe);
-        let ptr_context = addr_of_mut!(context);
+        let mut stackframe = Box::new(mem::zeroed::<STACKFRAME64>());
+        let mut context = Box::new(mem::zeroed::<CONTEXT>());
+        let ptr_stackframe = addr_of_mut!(*stackframe);
+        let ptr_context = addr_of_mut!(*context);
 
         RtlCaptureContext(ptr_context);
 
@@ -148,7 +147,7 @@ impl Extractor for Stack {
                 None,
             );
         }
-        println!("Number of frames {:?}", num_frames);
+        println!("Number of frames {num_frames:?}");
         println!(
             "Addr return frame: {:#X}",
             (*ptr_stackframe).AddrReturn.Offset
