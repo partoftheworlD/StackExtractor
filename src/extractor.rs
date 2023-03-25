@@ -111,42 +111,39 @@ impl Extractor for Stack {
                 });
         }
 
-        let mut stackframe = MaybeUninit::<STACKFRAME64>::uninit();
-        let pstackframe = stackframe.as_mut_ptr();
-        let mut context = MaybeUninit::<CONTEXT>::uninit();
-        let pcontext = context.as_mut_ptr();
+        let mut stackframe = mem::zeroed::<STACKFRAME64>();
+        let mut context = mem::zeroed::<CONTEXT>();
+        let ptr_stackframe = addr_of_mut!(stackframe);
+        let ptr_context = addr_of_mut!(context);
 
-        RtlCaptureContext(pcontext);
-        let context = context.assume_init();
+        RtlCaptureContext(ptr_context);
 
-        (*pstackframe).AddrPC.Offset = context.Rip;
-        (*pstackframe).AddrStack.Offset = context.Rsp;
-        (*pstackframe).AddrFrame.Offset = context.Rbp;
-        (*pstackframe).AddrPC.Mode = AddrModeFlat;
-        (*pstackframe).AddrStack.Mode = AddrModeFlat;
-        (*pstackframe).AddrFrame.Mode = AddrModeFlat;
-
-        stackframe.assume_init();
+        (*ptr_stackframe).AddrPC.Offset = context.Rip;
+        (*ptr_stackframe).AddrStack.Offset = context.Rsp;
+        (*ptr_stackframe).AddrFrame.Offset = context.Rbp;
+        (*ptr_stackframe).AddrPC.Mode = AddrModeFlat;
+        (*ptr_stackframe).AddrStack.Mode = AddrModeFlat;
+        (*ptr_stackframe).AddrFrame.Mode = AddrModeFlat;
 
         // TODO Отладить StackWalk64
-        if pstackframe.is_null() || pcontext.is_null() {
+        if ptr_stackframe.is_null() || ptr_context.is_null() {
             println!(
-                "[-] PStackFrame: {:?}\nPContext: {:?}",
-                ptr::addr_of!(pstackframe),
-                ptr::addr_of!(stackframe)
+                "[-] ptr_stackFrame: {:?}\nPContext: {:?}",
+                ptr::addr_of!(ptr_stackframe),
+                ptr::addr_of!(ptr_context)
             );
         } else {
             println!(
-                "[+] PStackFrame: {:?}\nPContext: {:?}",
-                ptr::addr_of!(pstackframe),
-                ptr::addr_of!(stackframe)
+                "[+] ptr_stackFrame: {:?}\nPContext: {:?}",
+                ptr::addr_of!(ptr_stackframe),
+                ptr::addr_of!(ptr_context)
             );
             StackWalk64(
                 u32::from(IMAGE_FILE_MACHINE_AMD64),
                 hprocess,
                 hthread,
-                pstackframe,
-                pcontext.cast::<c_void>(),
+                ptr_stackframe,
+                ptr_context.cast::<c_void>(),
                 None,
                 None,
                 None,
@@ -154,6 +151,9 @@ impl Extractor for Stack {
             );
         }
         println!("Number of frames {:?}", num_frames);
-        println!("Addr return frame: {:#X}", (*pstackframe).AddrReturn.Offset);
+        println!(
+            "Addr return frame: {:#X}",
+            (*ptr_stackframe).AddrReturn.Offset
+        );
     }
 }
