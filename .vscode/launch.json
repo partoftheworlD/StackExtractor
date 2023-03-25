@@ -6,10 +6,21 @@
 	"configurations": [
 
 		{
-			"name": "(Windows) Запустить",
+			"name": "Запустить Debug build",
 			"type": "cppvsdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/target/debug/StackExtractor.exe",
+			"args": [],
+			"stopAtEntry": false,
+			"cwd": "${fileDirname}",
+			"environment": [],
+			"externalConsole": true
+		},
+		{
+			"name": "Запустить Release build",
+			"type": "cppvsdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/target/release/StackExtractor.exe",
 			"args": [],
 			"stopAtEntry": false,
 			"cwd": "${fileDirname}",
