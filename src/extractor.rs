@@ -96,9 +96,11 @@ impl Extractor for Stack {
     }
 
     unsafe fn stacktrace(&self, hprocess: isize, hthread: isize) {
-        let mut backtrace = vec![0u64; u16::MAX as usize];
+        const FRAMEMAX: u32 = 63;
+        let mut backtrace = vec![0u64; FRAMEMAX as usize];
         let pbacktrace = backtrace.as_mut_ptr().cast::<*mut std::ffi::c_void>();
-        let num_frames = RtlCaptureStackBackTrace(0, 63, pbacktrace, std::ptr::null_mut::<u32>());
+        let num_frames =
+            RtlCaptureStackBackTrace(0, FRAMEMAX, pbacktrace, std::ptr::null_mut::<u32>());
         if num_frames > 0 {
             println!("stack trace");
             backtrace
@@ -109,46 +111,49 @@ impl Extractor for Stack {
                 });
         }
 
-        let mut stackframe_bind = MaybeUninit::<STACKFRAME64>::uninit();
-        let stackframe = stackframe_bind.assume_init_mut();
+        let mut stackframe = MaybeUninit::<STACKFRAME64>::uninit();
+        let pstackframe = stackframe.as_mut_ptr();
+        let mut context = MaybeUninit::<CONTEXT>::uninit();
+        let pcontext = context.as_mut_ptr();
 
-        let mut context_bind = MaybeUninit::<CONTEXT>::uninit();
-        let context = context_bind.as_mut_ptr();
+        RtlCaptureContext(pcontext);
+        let context = context.assume_init();
 
-        RtlCaptureContext(context);
-        context_bind.assume_init();
+        (*pstackframe).AddrPC.Offset = context.Rip;
+        (*pstackframe).AddrStack.Offset = context.Rsp;
+        (*pstackframe).AddrFrame.Offset = context.Rbp;
+        (*pstackframe).AddrPC.Mode = AddrModeFlat;
+        (*pstackframe).AddrStack.Mode = AddrModeFlat;
+        (*pstackframe).AddrFrame.Mode = AddrModeFlat;
 
-        let rip = (*context).Rip;
-        let rsp = (*context).Rsp;
-        let rbp = (*context).Rbp;
-
-        println!("Rip: {:#X}", rip);
-        println!("Rsp: {:#X}", rsp);
-        println!("Rbp: {:#X}", rbp);
-
-        stackframe.AddrPC.Offset = rip;
-        stackframe.AddrStack.Offset = rsp;
-        stackframe.AddrFrame.Offset = rbp;
-        stackframe.AddrPC.Mode = AddrModeFlat;
-        stackframe.AddrStack.Mode = AddrModeFlat;
-        stackframe.AddrFrame.Mode = AddrModeFlat;
+        stackframe.assume_init();
 
         // TODO Отладить StackWalk64
-
-        StackWalk64(
-            u32::from(IMAGE_FILE_MACHINE_AMD64),
-            hprocess,
-            hthread,
-            stackframe,
-            context.cast::<c_void>(),
-            None,
-            None,
-            None,
-            None,
-        );
-
+        if pstackframe.is_null() || pcontext.is_null() {
+            println!(
+                "[-] PStackFrame: {:?}\nPContext: {:?}",
+                ptr::addr_of!(pstackframe),
+                ptr::addr_of!(stackframe)
+            );
+        } else {
+            println!(
+                "[+] PStackFrame: {:?}\nPContext: {:?}",
+                ptr::addr_of!(pstackframe),
+                ptr::addr_of!(stackframe)
+            );
+            StackWalk64(
+                u32::from(IMAGE_FILE_MACHINE_AMD64),
+                hprocess,
+                hthread,
+                pstackframe,
+                pcontext.cast::<c_void>(),
+                None,
+                None,
+                None,
+                None,
+            );
+        }
         println!("Number of frames {:?}", num_frames);
-        println!("context Rip: {:#X}", (*context).Rip);
-        println!("Addr return frame: {:#X}", stackframe.AddrReturn.Offset);
+        println!("Addr return frame: {:#X}", (*pstackframe).AddrReturn.Offset);
     }
 }
