@@ -1,4 +1,5 @@
 use crate::decoder::Decoder;
+use crate::Box;
 use std::{
     ffi::c_void,
     mem::{self},
@@ -40,8 +41,7 @@ impl Extractor for Stack {
 
     fn attach(&mut self, process_name: &str) {
         const WTS_CURRENT_SERVER_HANDLE: isize = 0;
-        let mut process_info = Box::new(unsafe { mem::zeroed::<WTS_PROCESS_INFOA>() });
-        let mut ppprocess_info = addr_of_mut!(*process_info);
+        let (_, mut ppprocess_info) = Box!(WTS_PROCESS_INFOA);
         let mut process_count = 0u32;
         let wts_result = unsafe {
             WTSEnumerateProcessesA(
@@ -75,8 +75,7 @@ impl Extractor for Stack {
         unsafe {
             SetUnhandledExceptionFilter(Some(mem::transmute(exception_filter)));
         }
-        let mut thread_context = unsafe { Box::new(mem::zeroed::<CONTEXT>()) };
-        let ptr_thread_context = addr_of_mut!(*thread_context);
+        let (_thread_context, ptr_thread_context) = Box!(CONTEXT);
         unsafe {
             (*ptr_thread_context).ContextFlags = CONTEXT_DEBUG_REGISTERS;
             (*ptr_thread_context).Dr0 = addr;
@@ -111,11 +110,8 @@ impl Extractor for Stack {
                     println!(" {stack_ptr:#X}");
                 });
         }
-
-        let mut stackframe = Box::new(mem::zeroed::<STACKFRAME64>());
-        let mut context = Box::new(mem::zeroed::<CONTEXT>());
-        let ptr_stackframe = addr_of_mut!(*stackframe);
-        let ptr_context = addr_of_mut!(*context);
+        let (_stackframe, ptr_stackframe) = Box!(STACKFRAME64);
+        let (context, ptr_context) = Box!(CONTEXT);
 
         RtlCaptureContext(ptr_context);
 

@@ -1,5 +1,6 @@
 pub mod decoder;
 pub mod extractor;
+pub mod r#box;
 
 use crate::extractor::{Extractor, Stack};
 use std::ptr::addr_of_mut;
@@ -54,9 +55,8 @@ fn main() {
 
         let hprocess = OpenProcess(PROCESS_ALL_ACCESS, 0, stack.pid);
         let hsnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
-        let mut th32 = Box::new(mem::zeroed::<THREADENTRY32>());
-        let ptr_th32 = addr_of_mut!(*th32);
 
+        let (mut th32, ptr_th32) = Box!(THREADENTRY32);
         th32.dwSize = u32::try_from(mem::size_of::<THREADENTRY32>()).unwrap();
 
         let mut success = Thread32First(hsnap, ptr_th32) != 0;
