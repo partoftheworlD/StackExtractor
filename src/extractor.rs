@@ -12,7 +12,7 @@ use windows_sys::Win32::{
             StackWalk64, CONTEXT, EXCEPTION_POINTERS, STACKFRAME64,
         },
         Kernel::{ExceptionContinueExecution, ExceptionContinueSearch},
-        RemoteDesktop::WTSEnumerateProcessesA,
+        RemoteDesktop::{WTSEnumerateProcessesA, WTS_PROCESS_INFOA},
         SystemInformation::IMAGE_FILE_MACHINE_AMD64,
         Threading::{GetCurrentProcess, GetCurrentThread},
     },
@@ -40,20 +40,21 @@ impl Extractor for Stack {
 
     fn attach(&mut self, process_name: &str) {
         const WTS_CURRENT_SERVER_HANDLE: isize = 0;
-        let mut process_info = ptr::null_mut();
+        let mut process_info = Box::new(unsafe { mem::zeroed::<WTS_PROCESS_INFOA>() });
+        let mut ppprocess_info = addr_of_mut!(*process_info);
         let mut process_count = 0u32;
         let wts_result = unsafe {
             WTSEnumerateProcessesA(
                 WTS_CURRENT_SERVER_HANDLE,
                 0u32,
                 1,
-                &mut process_info,
+                &mut ppprocess_info,
                 &mut process_count,
             )
         };
-        if wts_result != 0 && !process_info.is_null() {
+        if wts_result != 0 && !ppprocess_info.is_null() {
             for idx in 1..=process_count {
-                let info = unsafe { *process_info.offset((idx).try_into().unwrap()) };
+                let info = unsafe { *ppprocess_info.offset((idx).try_into().unwrap()) };
                 let pname = unsafe { Stack::from_lpstr(info.pProcessName) };
                 if pname.eq_ignore_ascii_case(process_name) {
                     self.pid = info.ProcessId;
@@ -61,7 +62,10 @@ impl Extractor for Stack {
                 }
             }
             assert!((self.pid != 0), "Process {process_name} not found");
-            println!("{process_count:?}");
+            println!(
+                "Process count: {process_count:?} {process_name:?} {:?}",
+                self.pid
+            );
         } else {
             panic!("WTSEnumerateProcessesA failed");
         }
@@ -71,7 +75,7 @@ impl Extractor for Stack {
         unsafe {
             SetUnhandledExceptionFilter(Some(mem::transmute(exception_filter)));
         }
-        let mut thread_context =  unsafe { Box::new(mem::zeroed::<CONTEXT>()) };
+        let mut thread_context = unsafe { Box::new(mem::zeroed::<CONTEXT>()) };
         let ptr_thread_context = addr_of_mut!(*thread_context);
         unsafe {
             (*ptr_thread_context).ContextFlags = CONTEXT_DEBUG_REGISTERS;

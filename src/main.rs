@@ -51,30 +51,24 @@ fn main() {
     unsafe {
         let mut stack = Stack::new();
         stack.attach(r#"notepad.exe"#);
-        let mut th32 = Box::new(mem::zeroed::<THREADENTRY32>());
-        let ptr_th32 = addr_of_mut!(*th32);
-        let mut hthread = 0isize;
 
         let hprocess = OpenProcess(PROCESS_ALL_ACCESS, 0, stack.pid);
-        println!("HProcess {hprocess:?}");
-        // TODO: Get hthread
-        let hsnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD | TH32CS_SNAPPROCESS, 0);
-        while Thread32First(hsnap, ptr_th32) == 1 {
-            Thread32Next(hsnap, ptr_th32);
-            println!("th32 {:#X}", (*ptr_th32).th32ThreadID);
-            if (*ptr_th32).th32OwnerProcessID == stack.pid {
-                hthread = OpenThread(THREAD_QUERY_INFORMATION, 1, (*ptr_th32).th32ThreadID);
-                break;
-            }
-        }
+        let hsnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+        let mut th32 = Box::new(mem::zeroed::<THREADENTRY32>());
+        let ptr_th32 = addr_of_mut!(*th32);
 
-        if hthread != 0 {
-            println!("HThread {hthread:?}");
-        } else {
-            println!("Can't get HThread");
+        th32.dwSize = u32::try_from(mem::size_of::<THREADENTRY32>()).unwrap();
+
+        let mut success = Thread32First(hsnap, ptr_th32) != 0;
+        while success {
+            success = Thread32Next(hsnap, ptr_th32) != 0;
         }
+        let hthread = OpenThread(THREAD_QUERY_INFORMATION, 0, th32.th32ThreadID);
+
         stack.stacktrace(hprocess, hthread);
-        CloseHandle(hprocess);
+
         CloseHandle(hthread);
+        CloseHandle(hsnap);
+        CloseHandle(hprocess);
     }
 }
